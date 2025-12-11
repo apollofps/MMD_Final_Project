@@ -7,9 +7,8 @@ def download_data():
     
     os.makedirs(LOCAL_DIR, exist_ok=True)
     
-    print("Downloading 55 Batches (Train + Eval) from GCS...")
+    print("Downloading 100 Batches from GCS...")
     
-
     for i in range(100):
         batch = f"batch_{i:02d}"
         gcs_path = f"{BUCKET}/{batch}"

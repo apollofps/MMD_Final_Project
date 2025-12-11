@@ -8,10 +8,8 @@ class MotionLSTM(nn.Module):
         self.num_layers = num_layers
         self.future_steps = future_steps
         
-
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, dropout=0.2)
         
-
         self.fc = nn.Sequential(
             nn.Linear(hidden_size, 128),
             nn.ReLU(),
@@ -20,12 +18,11 @@ class MotionLSTM(nn.Module):
         )
         
     def forward(self, x):
-
         out, (h_n, c_n) = self.lstm(x)
         
-        last_hidden = out[:, -1, :] # (batch, hidden)
+        last_hidden = out[:, -1, :]
         
-        prediction = self.fc(last_hidden) # (batch, 160)
+        prediction = self.fc(last_hidden)
         
         prediction = prediction.view(-1, self.future_steps, 2)
         

@@ -4,11 +4,10 @@ import pandas as pd
 import numpy as np
 import os
 
-# Set style for research-grade plots
 sns.set_theme(style="whitegrid", context="paper", font_scale=1.2)
-OUTPUT_DIR = "/Users/apollo/.gemini/antigravity/brain/49b981d9-7429-4264-bb7a-231cd4ea72c3"
+OUTPUT_DIR = "./output"
 
-def  plot_model_comparison():
+def plot_model_comparison():
     data = {
         "Model": ["Baseline\n(CV)", "Single-Mode\n(LSTM v3)", "Multi-Modal\n(MTP v5)"],
         "minADE": [4.07, 3.58, 2.07],
@@ -20,7 +19,6 @@ def  plot_model_comparison():
     plt.figure(figsize=(8, 6))
     ax = sns.barplot(x="Model", y="Error (meters)", hue="Metric", data=df_melt, palette="viridis")
     
-    # Annotate improvements
     for p in ax.patches:
         ax.annotate(f'{p.get_height():.2f}', (p.get_x() + p.get_width() / 2., p.get_height()),
                     ha='center', va='center', xytext=(0, 8), textcoords='offset points', fontsize=10, fontweight='bold')
@@ -32,11 +30,6 @@ def  plot_model_comparison():
     print("Generated model_comparison.png")
 
 def plot_scaling_efficiency():
-    # Training Time vs Data Size (Hybrid Pipeline)
-    # 5 Batches ~ 15 mins
-    # 50 Batches ~ 100 mins
-    # 100 Batches ~ 210 mins
-    
     batches = [5, 50, 100]
     time_min = [15, 100, 210]
     ade = [4.19, 2.07, 2.11]
@@ -50,7 +43,7 @@ def plot_scaling_efficiency():
     ax1.tick_params(axis='y', labelcolor=color)
     ax1.grid(False)
 
-    ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+    ax2 = ax1.twinx()
     color = 'tab:red'
     ax2.set_ylabel('Validation minADE (m)', color=color)
     ax2.plot(batches, ade, marker='s', linestyle='--', color=color, linewidth=3, label="Error (minADE)")

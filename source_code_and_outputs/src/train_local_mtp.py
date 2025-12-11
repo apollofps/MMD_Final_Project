@@ -10,27 +10,25 @@ from src.model_mtp import MotionMTP, mtp_loss
 
 def train_mtp():
     print("========================================")
-    print("   Local MTP Training (MPS) 🔮          ")
+    print("   Local MTP Training (MPS)          ")
     print("========================================")
     print("Predicting 3 Modes (Left/Straight/Right)")
     
     BATCH_SIZE = 512
     LEARNING_RATE = 0.001
-    EPOCHS = 10 # More epochs to learn multiple modes
+    EPOCHS = 10
     DATA_DIR = "./data/processed_enriched"
     
     if torch.backends.mps.is_available():
         device = torch.device("mps")
-        print("✅ Using Apple Metal (MPS)")
+        print("Using Apple Metal (MPS)")
     else:
         device = torch.device("cpu")
-        print("⚠️ MPS not found")
+        print("MPS not found")
         
-    # Scaling Up: Hidden Size 128 -> 512
     model = MotionMTP(input_size=6, hidden_size=512, num_modes=3).to(device)
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
     
-    # Batches 00 to 99 (Full Scale)
     batches = [f"batch_{i:02d}" for i in range(100)]
     
     for epoch in range(EPOCHS):
@@ -48,7 +46,6 @@ def train_mtp():
                 df = pd.concat(dfs, ignore_index=True)
                 if "map_dist" not in df.columns: continue
 
-                # Preprocess (Same as before)
                 xs = np.stack(df["x"].values)
                 ys = np.stack(df["y"].values)
                 vxs = np.stack(df["vx"].values)
@@ -78,7 +75,6 @@ def train_mtp():
                 
                 target_valid = valids[:, 11:]
                 
-                # To MPS
                 inputs_t = torch.tensor(inputs, dtype=torch.float32).to(device)
                 targets_t = torch.tensor(targets, dtype=torch.float32).to(device)
                 valid_t = torch.tensor(target_valid, dtype=torch.float32).to(device)
