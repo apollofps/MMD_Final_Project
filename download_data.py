@@ -9,8 +9,7 @@ def download_data():
     
     print("Downloading 55 Batches (Train + Eval) from GCS...")
     
-    # Use gsutil -m for parallel download
-    # We download batch_00 to batch_99 (Full Dataset)
+
     for i in range(100):
         batch = f"batch_{i:02d}"
         gcs_path = f"{BUCKET}/{batch}"
@@ -22,7 +21,6 @@ def download_data():
             
         print(f"Downloading {batch}...")
         try:
-            # Recursive copy of the batch directory
             subprocess.check_call(["gsutil", "-m", "cp", "-r", gcs_path, LOCAL_DIR])
         except Exception as e:
             print(f"Failed to download {batch}: {e}")

@@ -1,55 +1,100 @@
 # Video Script: Mining Massive Datasets Final Project
-**Title**: Scaling Autonomous Trajectory Prediction on Constraints  
-**Duration**: ~5 Minutes  
-**Narrators**: 2 (Alex - Data Eng, Sam - AI Researcher)
+**Title**: Scaling Autonomous Trajectory Prediction  
+**Duration**: 5 Minutes  
+**Format**: Two Narrators (Split by Half)
 
 ---
 
-## Segment 1: The Challenge (0:00 - 1:00)
+## PART 1: Data Engineering & Model (Narrator A - 0:00 to 2:30)
 
-| Time | Speaker | Audio Script | Visual / Screen Record |
-| :--- | :--- | :--- | :--- |
-| **0:00** | **Alex** | Imagine predicting the future movement of every car in a city. Now imagine doing it with 2 Terabytes of data, but you only have a laptop and a small cloud budget. That was our challenge for the Mining Massive Datasets project. | **Visual**: Show the "Waymo Open Motion Dataset" Website splash page. Fade to a quick montage of self-driving cars moving. |
-| **0:20** | **Sam** | Exactly. We tackled the Waymo Open Motion Dataset. It contains over 200,000 scenes of complex traffic. The industry standard is to use massive GPU clusters. We asked: Can we build a research-grade pipeline using a Hybrid Cloud and Edge approach? | **Visual**: Scroll through the raw TFRecord file list in Google Cloud Storage console (showing 1000s of files). |
-| **0:45** | **Alex** | Spoiler alert: We did. And we improved the baseline error by 70%. Let’s show you how. | **Visual**: Show the final "minADE 2.07m" result highlighted in the `Final_Report.md`. |
+### Introduction (0:00 - 0:30)
+> "Hey everyone, welcome to our Mining Massive Datasets final project. I'm [Name A], and I'll walk you through how we tackled motion prediction at scale."
+>
+> "Our challenge: build a trajectory prediction system using the 2-terabyte Waymo Open Motion Dataset on a minimal cloud budget. Let me show you how we did it."
 
----
-
-## Segment 2: The Data Architecture (1:00 - 2:15)
-
-| Time | Speaker | Audio Script | Visual / Screen Record |
-| :--- | :--- | :--- | :--- |
-| **1:00** | **Alex** | It starts with the Data Pipeline. We couldn't just load 2TB into memory. We built a distributed ETL pipeline on Google Cloud Dataproc using Apache Spark. | **Visual**: Show `walkthrough.md` Architecture Diagram (Mermaid graph). Tooltip over "Cloud Dataproc". |
-| **1:20** | **Alex** | I wrote a custom micro-batching script `preprocess_maps.py`. It shreds the complex Protobuf data, extracts the geometric lane features, and flattens everything into Parquet files. | **Visual**: Open `preprocess_maps.py` in VS Code. Highlight the `compute_map_features` function and the SQL-like dataframe transformations. |
-| **1:45** | **Sam** | This was critical. By converting to Parquet and pruning unused LiDAR data, Alex reduced the storage footprint by 60%. This allowed us to stream the data efficiently to our training node. | **Visual**: Show the terminal downloading files: `gsutil -m cp ...`. Show the file sizes dropping from GBs to MBs. |
+**[SCREEN: Show Waymo Dataset website or GCS bucket listing]**
 
 ---
 
-## Segment 3: The Model (2:15 - 3:30)
+### The Scale Problem (0:30 - 1:00)
+> "The Waymo dataset has over 200,000 driving scenes with full trajectory and map data. Loading this into memory crashes any normal machine instantly."
+>
+> "We needed a distributed approach, so we deployed Apache Spark on Google Cloud Dataproc."
 
-| Time | Speaker | Audio Script | Visual / Screen Record |
-| :--- | :--- | :--- | :--- |
-| **2:15** | **Sam** | Now for the brain. We started with a standard LSTM model. It failed miserably. It generated an Average Displacement Error of 4 meters. | **Visual**: Show the plot `model_comparison.png`. Point to the "Baseline" bar. |
-| **2:30** | **Sam** | The problem is "The Average". When a car approaches a fork, it can go Left or Right. A standard model predicts the average: straight into the divider. | **Visual**: Use a drawing tool (iPad or Paint) to sketch a Y-junction and draw a line going straight into the wall (labeled "L2 Loss Failure"). |
-| **2:50** | **Sam** | So we built a Multi-Trajectory Prediction network—MTP. It outputs THREE distinct paths and their probabilities. We trained this locally on an M4 Mac using Apple's Metal Performance Shaders. | **Visual**: Open `src/model_mtp.py`. Scroll to `class MotionMTP`. Highlight `self.num_modes = 3`. |
-| **3:10** | **Sam** | We used a "Winner-Takes-All" loss. We only punish the prediction that was *closest* to the truth, allowing the other heads to specialize in other possibilities. | **Visual**: Highlight the `mtp_loss` function in the code. Show the `torch.min` operation. |
+**[SCREEN: Show terminal with file listing or Dataproc console]**
 
 ---
 
-## Segment 4: Results & Demo (3:30 - 4:15)
+### Spark Preprocessing (1:00 - 1:45)
+> "Here's our preprocessing script. We use micro-batching—splitting the 1000 raw files into 100 independent batches. Each batch extracts agent trajectories and computes the distance to the nearest lane center."
 
-| Time | Speaker | Audio Script | Visual / Screen Record |
-| :--- | :--- | :--- | :--- |
-| **3:30** | **Alex** | Let's see it running. Here is the training loop on the full 100-batch dataset. You can see the loss dropping as it streams data from the SSD. | **Visual**: Screen record the terminal running `train_local_mtp.py`. Speed it up (timelapse) to show the Loss numbers falling. |
-| **3:50** | **Sam** | And here are the final evaluation metrics. We achieved a minimum Average Displacement Error of 2.07 meters. That’s a massive jump from the 4-meter baseline. | **Visual**: Show the plain text output of `eval_local_mtp.py` showing `minADE: 2.07m`. |
-| **4:05** | **Alex** | We even tried scaling the model size up to 512 hidden units, but found the smaller, efficient model actually performed better on this dataset scale. | **Visual**: Show `scaling_efficiency.png` plot. Point to the saturation curve. |
+**[SCREEN: Open `preprocess_maps.py` in VS Code, scroll through `compute_map_features` function]**
+
+> "This map feature is critical. It tells the model where the road actually is."
 
 ---
 
-## Segment 5: Conclusion (4:15 - 5:00)
+### The MTP Model (1:45 - 2:30)
+> "For the AI side, we built a Multi-Trajectory Prediction network. The key insight is that at intersections, cars can go multiple directions. A standard model predicts the average—often straight into a wall."
+>
+> "Our MTP model outputs three distinct paths with probabilities. We train with Winner-Takes-All loss, only penalizing the closest prediction. This forces each head to specialize in different maneuvers."
 
-| Time | Speaker | Audio Script | Visual / Screen Record |
-| :--- | :--- | :--- | :--- |
-| **4:15** | **Alex** | So, what did we learn? You don't need a supercomputer to do massive data mining. You need smart architecture. | **Visual**: Camera pans back to Host A. |
-| **4:30** | **Sam** | By combining Spark for the heavy lifting and optimized Edge hardware for the intelligence, we built a pipeline that scales linearly. | **Visual**: Camera pans back to Host B. |
-| **4:45** | **Both** | This is the future of efficient AI. Thanks for watching. | **Visual**: Fade to Black. Text: "Mining Massive Datasets Fall 2025". |
+**[SCREEN: Open `src/model_mtp.py`, highlight the class definition and `mtp_loss` function]**
+
+> "Now I'll hand it over to [Name B] to walk through our system architecture and results."
+
+---
+
+## PART 2: Architecture, Results & Conclusion (Narrator B - 2:30 to 5:00)
+
+### System Architecture (2:30 - 3:15)
+> "Thanks [Name A]. I'm [Name B]. Let me show you the full picture of how our system works."
+>
+> "Here's our pipeline diagram. We have a hybrid architecture that separates data processing from model training."
+
+**[SCREEN: Show the Mermaid architecture diagram from Final_Report.md]**
+
+> "On the left, raw Waymo data flows into Google Cloud Dataproc where Spark handles the heavy ETL work—deserializing Protobufs, extracting map features, and writing optimized Parquet files."
+>
+> "Those files get downloaded to our local machine, where we train the MTP model using Apple's Metal Performance Shaders. This hybrid approach lets us leverage cloud compute for data processing while keeping training costs at zero."
+
+---
+
+### Results (3:15 - 4:15)
+> "Now for the results. We compared three approaches: a physics baseline using constant velocity, a single-mode LSTM, and our Multi-Trajectory Prediction model."
+
+**[SCREEN: Show `model_comparison.png` bar chart]**
+
+> "The baseline had a Final Displacement Error of over 11 meters—meaning after 8 seconds, predictions were 11 meters off target. The single-mode LSTM improved that to about 10 meters."
+>
+> "But our MTP model achieved just 2.93 meters. That's a 70% reduction in error."
+
+**[SCREEN: Show `scaling_efficiency.png` plot]**
+
+> "We also ran scaling experiments. Training on 50 batches versus 100 batches showed minimal improvement—the model had saturated its learning capacity. And interestingly, making the model bigger actually hurt performance due to overfitting."
+
+---
+
+### Conclusion (4:15 - 5:00)
+> "So what did we learn? Three key takeaways."
+>
+> "First, you don't need a supercomputer. With smart distributed ETL and edge training, we processed 2 terabytes on a student budget."
+>
+> "Second, architecture matters more than scale. The switch to multi-modal prediction gave us 70% error reduction—far more than simply adding data or parameters."
+>
+> "Third, hybrid pipelines are the future. Separating data processing from model training lets you optimize each component independently."
+>
+> "Thanks for watching. Our code is open source on GitHub."
+
+**[SCREEN: Show GitHub repo page with README visible]**
+
+---
+
+## Recording Checklist
+- [ ] Waymo website or GCS console
+- [ ] VS Code with `preprocess_maps.py` open
+- [ ] VS Code with `src/model_mtp.py` open
+- [ ] Architecture diagram from Final_Report.md
+- [ ] Bar chart (`model_comparison.png`)
+- [ ] Scaling plot (`scaling_efficiency.png`)
+- [ ] GitHub repo page

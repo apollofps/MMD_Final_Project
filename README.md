@@ -1,81 +1,91 @@
 # Distributed Motion Prediction on Waymo Open Dataset
 
 ## Overview
-This repository contains the implementation of a **Multi-Trajectory Prediction (MTP)** pipeline for the Mining Massive Datasets (MMD) final project. We address the challenge of training deep learning models on the **2.17 TB Waymo Open Motion Dataset** using a constrained hybrid architecture (Cloud Spark + Edge Compute).
+Multi-Trajectory Prediction (MTP) pipeline for the Mining Massive Datasets final project. We process the **2.17 TB Waymo Open Motion Dataset** using a hybrid architecture (Cloud Spark + Local MPS) and achieve a **70% reduction in displacement error**.
 
-Our approach achieves a **70% reduction in Final Displacement Error (FDE)** compared to physics baselines by leveraging a multi-modal output head trained with a Winner-Takes-All loss function.
-
-## Architecture
-The system is designed as a decoupled pipeline:
-1.  **Distributed ETL (Google Cloud Dataproc)**: 
-    *   Apache Spark Micro-batching to process raw TFRecords.
-    *   Map feature extraction (Lane centerlines & geometry).
-    *   Optimized Parquet serialization (60% storage reduction).
-2.  **Edge Training (Local M4 Silicon)**:
-    *   Iterative Streaming of Parquet batches to constant RAM.
-    *   Metal Performance Shaders (MPS) for accelerated PyTorch training.
-
-## Repository Structure
-```
-.
-├── src/
-│   ├── model_mtp.py       # Multi-Trajectory Prediction Network (PyTorch)
-│   └── model_lstm.py      # Baseline LSTM Network
-├── Final_Report.md        # Detailed Research Report
-├── train_local_mtp.py     # Main Training Script (MPS-Accelerated)
-├── eval_local_mtp.py      # Evaluation Script (minADE/minFDE)
-├── preprocess_maps.py     # PySpark ETL Script
-├── download_data.py       # Data Fetching Utility
-└── requirements.txt       # Dependencies
-```
-
-## Setup & Installation
+## Quick Start
 
 ### Prerequisites
-*   Python 3.10+
-*   PyTorch (MPS enabled for Mac, or CUDA for Linux)
-*   Apache Spark (for ETL only)
+- Python 3.10+
+- PyTorch with MPS (Mac) or CUDA (Linux)
+- Google Cloud SDK (for data download)
 
 ### Installation
 ```bash
-pip install torch pandas numpy pyspark matplotlib
+git clone https://github.com/apollofps/MMD_Final_Project.git
+cd MMD_Final_Project
+pip install torch pandas numpy matplotlib seaborn
 ```
 
-## Usage
+## Running the Pipeline
 
-### 1. Data Processing (Cloud)
-To run the extraction pipeline on Dataproc:
+### Step 1: Download Data
+First, configure your GCS credentials, then run:
 ```bash
-python preprocess_maps.py --start_batch 0 --end_batch 100
+python download_data.py
 ```
-*Note: This requires GCS bucket access configured in the script.*
+This downloads 100 preprocessed batches (~50GB) to `./data/processed_enriched/`.
 
-### 2. Training (Local)
-Train the MTP model on the downloaded batches:
+**Note**: If you don't have GCS access, you can use a subset of sample data or run the preprocessing yourself (see Step 1b).
+
+### Step 1b: Preprocess from Raw (Optional)
+If you have access to raw Waymo TFRecords on Dataproc:
+```bash
+# Submit to Dataproc cluster
+gcloud dataproc jobs submit pyspark preprocess_maps.py \
+    --cluster=waymo-cluster \
+    --region=us-central1 \
+    -- --start_batch 0 --end_batch 100
+```
+
+### Step 2: Train the Model
 ```bash
 python train_local_mtp.py
 ```
-This script will automatically detect MPS/CUDA and start streaming data from `./data/processed_enriched`.
+**Expected output:**
+- Training runs for 10 epochs across 100 batches
+- Loss decreases from ~1000 to ~650
+- Model saved to `mtp_v5_local.pth`
 
-### 3. Evaluation
-Run the validation on the unseen test set (Batch 50):
+**Hardware**: Automatically detects MPS (Mac) or CUDA (Linux). Falls back to CPU.
+
+### Step 3: Evaluate
 ```bash
 python eval_local_mtp.py
 ```
-Expected output:
-> minADE: ~2.07m  
-> minFDE: ~2.93m
+**Expected output:**
+```
+RESULTS (Local MTP - 3 Modes):
+minADE: 2.07 meters
+minFDE: 2.93 meters
+```
+
+### Step 4: Generate Plots (Optional)
+```bash
+python generate_report_plots.py
+```
+Creates `model_comparison.png` and `scaling_efficiency.png`.
+
+## Repository Structure
+```
+├── src/
+│   ├── model_mtp.py       # Multi-Trajectory Prediction Network
+│   └── model_lstm.py      # Baseline LSTM
+├── train_local_mtp.py     # Training script (MPS/CUDA)
+├── eval_local_mtp.py      # Evaluation script
+├── preprocess_maps.py     # Spark ETL pipeline
+├── download_data.py       # GCS data fetcher
+├── Final_Report.md        # Research report
+└── video_script.md        # Presentation script
+```
 
 ## Results
-We compared our MTP approach against Single-Mode LSTM and constant velocity baselines.
 
-| Model | minADE (m) | minFDE (m) |
-|-------|------------|------------|
-| Constant Velocity | 4.07 | 11.28 |
-| Single-Mode LSTM | 3.58 | 9.89 |
-| **MTP (Ours)** | **2.07** | **2.93** |
-
-See `Final_Report.md` for the complete ablation study and scaling analysis.
+| Model | minADE | minFDE | Improvement |
+|-------|--------|--------|-------------|
+| Constant Velocity | 4.07m | 11.28m | - |
+| Single-Mode LSTM | 3.58m | 9.89m | 12% |
+| **MTP (Ours)** | **2.07m** | **2.93m** | **70%** |
 
 ## License
 MIT
